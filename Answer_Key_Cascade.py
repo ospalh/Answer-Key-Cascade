@@ -1,8 +1,32 @@
-﻿"""Name: Answer Key CascadeFilename: Answer_Key_Cascade.pyVersion: 0.4Author: KenishiDesc:	By defualt Anki 2 now reduces the button count depending on card age.		Cards can now have anywhere from 2 to 4 buttons max depending on age.		Answering a card with 2 buttons requires you to press 1 or 2 if you are using hotkeys.		This can interfere with review speed if you don't realize its 2 buttons and answer 3/4.		This addon makes it so answering with a higher ease than possible will answer with the actual highest.				*Example* 3 Button card: You press "4", the addon answers with "3".
-		Report bugs to https://github.com/Kenishi/Answer-Key-Cascade"""
-from PyQt4.QtCore import *from PyQt4.QtGui import *from aqt import mw
-### Key Dictionary for new answer ###
-KEYS = {2:(Qt.Key_2,u'2'),		3:(Qt.Key_3,u'3')}def isLarger(text,cnt):	num = 0	try:		num = int(text)	except ValueError:		return False	if num > cnt and (num >=1 and num <=4): # Did we answer higher than button count? Did we press a key 1-4?		return True	else:		return False
-def KeyRemap_keyPressEvent(evt):	if mw.reviewer.state == "answer": # Check if we're in answer		cnt = None		try:			cnt = mw.col.sched.answerButtons(mw.reviewer.card) # Get button count		except AttributeError: # Catch exception that occurs when finished reviewing			return oldPressevent(evt)		if isLarger(evt.text(), cnt): # Was our answer larger than the max button count?			key, text = KEYS.get(cnt,(evt.key(),evt.text()))			evt = QKeyEvent(QEvent.KeyRelease, key, evt.modifiers(), text, evt.isAutoRepeat(), evt.count()) # Modify answer to reflect that we wanted the max answer	return oldPressevent(evt)	
-### Wrap old keyPressEvent with our new one
-oldPressevent = mw.keyPressEventmw.keyPressEvent = KeyRemap_keyPressEvent
+# -*- mode: python ; coding: utf-8 -*-
+#
+# © 2012 Roland Sieker (ospalh@gmail.com), 2012-04-13
+#
+# License: GNU AGPL, version 3 or later; http://www.gnu.org/copyleft/agpl.html
+
+
+"""
+Add-on for Anki 2 to always accept answer keys up to 4.
+"""
+
+from aqt.reviewer import Reviewer
+
+def four_answer_card(self, ease):
+    """
+    Wrapper for the old Reviewer._answerCard
+
+    Only call the old _answerCard function when we have an ease up to
+    four. There are at most four buttons, but there may be fewer. When
+    we have fewer than four and we try to answer with an non-existant
+    ease, pretend we pressed the highest ease button.
+    When the eease is > 4, we don't call the _answerCard. That is
+    OK. The old behaviour was to do nothing inside that function in
+    that case.
+    """
+    if (ease <= 4):
+        old__answerCard(self,
+                        min(ease, self.mw.col.sched.answerButtons(self.card)))
+
+
+old__answerCard = Reviewer._answerCard
+Reviewer._answerCard = four_answer_card
